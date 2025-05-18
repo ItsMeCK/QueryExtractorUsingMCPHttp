@@ -1,0 +1,31 @@
+# docker-compose.yml for MySQL Server
+
+version: '3.8' # Specifies the version of the Docker Compose file format
+
+services:
+  mysql_db: # Defines a service named 'mysql_db'
+    image: mysql:8.0 # Uses the official MySQL 8.0 image from Docker Hub
+    container_name: mysql_mcp_container # Assigns a specific name to the container
+    restart: unless-stopped # Configures the restart policy for the container
+    environment:
+      MYSQL_ROOT_PASSWORD: supersecretpassword # Sets the root password for MySQL
+      MYSQL_DATABASE: user_data_db # Creates a database named 'user_data_db' on startup
+      MYSQL_USER: mcp_user # Creates a user named 'mcp_user'
+      MYSQL_PASSWORD: mcp_password # Sets the password for 'mcp_user'
+    ports:
+      - "3306:3306" # Maps port 3306 on the host to port 3306 in the container
+    volumes:
+      - mysql_data:/var/lib/mysql # Creates a named volume 'mysql_data' to persist database files
+      # To use an init script (optional):
+      # - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mcp_network # Connects this service to a custom network
+
+volumes:
+  mysql_data: # Defines the named volume for data persistence
+    driver: local
+
+networks:
+  mcp_network: # Defines a custom bridge network
+    driver: bridge
+

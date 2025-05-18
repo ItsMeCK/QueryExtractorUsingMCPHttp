@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Chat Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light gray background */
+        }
+        #chatbox {
+            height: calc(100vh - 200px); /* Adjust height as needed */
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db; /* Gray border */
+        }
+        .user-message {
+            background-color: #007bff; /* Blue for user */
+            color: white;
+            align-self: flex-end;
+            border-radius: 0.75rem 0.75rem 0 0.75rem;
+        }
+        .bot-message {
+            background-color: #e9ecef; /* Lighter gray for bot */
+            color: #333;
+            align-self: flex-start;
+            border-radius: 0.75rem 0.75rem 0.75rem 0;
+        }
+        .message {
+            max-width: 70%;
+            word-wrap: break-word;
+            white-space: pre-wrap; /* To respect newlines from bot */
+        }
+        #chat-input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #007bff; /* Blue */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto; /* Centered */
+            display: none; /* Hidden by default */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl bg-white shadow-xl rounded-lg flex flex-col">
+        <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 rounded-t-lg">
+            <h1 class="text-2xl font-semibold text-center">Data Query Assistant</h1>
+        </header>
+
+        <div id="chatbox" class="p-4 overflow-y-auto flex-grow space-y-3">
+            <div class="bot-message message p-3 rounded-lg shadow">
+                Hello! How can I help you with your data today?
+            </div>
+        </div>
+
+        <div id="loader" class="loader"></div> <footer class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+            <form id="chat-form" class="flex items-center space-x-3">
+                <input type="text" id="chat-input" placeholder="Type your query here..." autocomplete="off"
+                       class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-150">
+                <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow transition duration-150 ease-in-out transform hover:scale-105">
+                    Send
+                </button>
+            </form>
+        </footer>
+    </div>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatbox = document.getElementById('chatbox');
+        const loader = document.getElementById('loader');
+
+        chatForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const userMessage = chatInput.value.trim();
+
+            if (userMessage) {
+                addMessageToChatbox(userMessage, 'user');
+                chatInput.value = ''; // Clear input
+                loader.style.display = 'block'; // Show loader
+
+                try {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ message: userMessage }),
+                    });
+
+                    loader.style.display = 'none'; // Hide loader
+
+                    if (!response.ok) {
+                        // Try to parse error from server if possible
+                        let errorData;
+                        try {
+                            errorData = await response.json();
+                        } catch (e) {
+                            // If response is not JSON
+                            errorData = { reply: `Server error: ${response.status} ${response.statusText}` };
+                        }
+                        addMessageToChatbox(errorData.reply || `Error: ${response.status}`, 'bot');
+                        return;
+                    }
+
+                    const data = await response.json();
+                    addMessageToChatbox(data.reply, 'bot');
+
+                } catch (error) {
+                    loader.style.display = 'none'; // Hide loader on network error
+                    console.error('Error sending message:', error);
+                    addMessageToChatbox('Sorry, I couldn\'t connect to the server. Please try again.', 'bot');
+                }
+            }
+        });
+
+        function addMessageToChatbox(message, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', 'p-3', 'rounded-lg', 'shadow', 'mb-2');
+
+            // Sanitize message before inserting as HTML to prevent XSS
+            // A more robust sanitizer might be needed for production if messages can contain complex HTML
+            const textNode = document.createTextNode(message);
+            messageElement.appendChild(textNode);
+
+
+            if (sender === 'user') {
+                messageElement.classList.add('user-message');
+            } else {
+                messageElement.classList.add('bot-message');
+            }
+            chatbox.appendChild(messageElement);
+            chatbox.scrollTop = chatbox.scrollHeight; // Auto-scroll to bottom
+        }
+    </script>
+
+</body>
+</html>
